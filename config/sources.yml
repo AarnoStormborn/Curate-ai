@@ -1,0 +1,159 @@
+# =============================================================================
+# Curate AI - Data Sources Configuration
+# =============================================================================
+# This file configures all data sources for the ingestion pipeline.
+# Sources are organized by type: rss, reddit, web_search, arxiv
+
+# -----------------------------------------------------------------------------
+# RSS Feeds
+# -----------------------------------------------------------------------------
+rss_feeds:
+  # Research Sources
+  - name: "OpenAI Blog"
+    url: "https://openai.com/news/rss.xml"
+    category: "research"
+    
+  - name: "Google Research"
+    url: "https://research.google/blog/feed/"
+    category: "research"
+    
+  - name: "BAIR Blog"
+    url: "https://bair.berkeley.edu/blog/feed"
+    category: "research"
+
+  # Academic
+  - name: "MIT News - AI"
+    url: "https://news.mit.edu/topic/artificial-intelligence/feed"
+    category: "academic"
+
+  # Industry
+  - name: "TechCrunch - AI"
+    url: "https://techcrunch.com/category/artificial-intelligence/feed/"
+    category: "industry"
+    
+  - name: "VentureBeat - AI"
+    url: "https://venturebeat.com/category/ai/feed/"
+    category: "industry"
+    
+  - name: "AI Business"
+    url: "https://aibusiness.com/rss"
+    category: "industry"
+    
+  - name: "AWS Blog - AI"
+    url: "https://aws.amazon.com/blogs/aws/category/artificial-intelligence/feed/"
+    category: "industry"
+
+  # News
+  - name: "MarkTechPost"
+    url: "https://www.marktechpost.com/feed/"
+    category: "news"
+    
+  - name: "Unite.AI"
+    url: "https://www.unite.ai/feed/"
+    category: "news"
+    
+  - name: "The Verge - AI"
+    url: "https://www.theverge.com/ai-artificial-intelligence/rss/index.xml"
+    category: "news"
+    
+  - name: "Ars Technica - AI"
+    url: "https://arstechnica.com/ai/feed/"
+    category: "news"
+    
+  - name: "AI News"
+    url: "https://www.artificialintelligence-news.com/feed/"
+    category: "news"
+    
+  - name: "DailyAI"
+    url: "https://dailyai.com/feed/"
+    category: "news"
+    
+  - name: "Analytics India Magazine"
+    url: "https://analyticsindiamag.com/ai-news/feed/"
+    category: "news"
+
+  # Practitioner
+  - name: "Machine Learning Mastery"
+    url: "https://machinelearningmastery.com/blog/feed/"
+    category: "practitioner"
+    
+  - name: "Analytics Vidhya"
+    url: "https://www.analyticsvidhya.com/blog/feed/"
+    category: "practitioner"
+    
+  - name: "Hugging Face Blog"
+    url: "https://huggingface.co/blog/feed.xml"
+    category: "practitioner"
+    
+  - name: "The Gradient"
+    url: "https://thegradient.pub/rss/"
+    category: "practitioner"
+
+  # Newsletters
+  - name: "The Rundown AI"
+    url: "https://www.therundown.ai/rss.xml"
+    category: "newsletter"
+
+# -----------------------------------------------------------------------------
+# Reddit Subreddits
+# -----------------------------------------------------------------------------
+subreddits:
+  - name: "r/MachineLearning"
+    subreddit: "MachineLearning"
+    sort: "hot"
+    limit: 25
+    
+  - name: "r/artificial"
+    subreddit: "artificial"
+    sort: "hot"
+    limit: 20
+    
+  - name: "r/LocalLLaMA"
+    subreddit: "LocalLLaMA"
+    sort: "hot"
+    limit: 20
+    
+  - name: "r/LanguageTechnology"
+    subreddit: "LanguageTechnology"
+    sort: "hot"
+    limit: 15
+    
+  - name: "r/deeplearning"
+    subreddit: "deeplearning"
+    sort: "hot"
+    limit: 15
+
+# -----------------------------------------------------------------------------
+# Web Search Sources (for headlines crawling)
+# -----------------------------------------------------------------------------
+web_search:
+  enabled: true
+  queries:
+    - "AI news today"
+    - "machine learning breakthrough"
+    - "LLM developments"
+    - "AI research papers"
+  max_results_per_query: 10
+
+# -----------------------------------------------------------------------------
+# arXiv Configuration
+# -----------------------------------------------------------------------------
+arxiv:
+  enabled: true
+  categories:
+    - "cs.AI"   # Artificial Intelligence
+    - "cs.LG"   # Machine Learning
+    - "cs.CL"   # Computation and Language (NLP)
+    - "cs.CV"   # Computer Vision
+    - "stat.ML" # Statistics - Machine Learning
+  max_results: 50
+  days_lookback: 3
+
+# -----------------------------------------------------------------------------
+# Global Settings
+# -----------------------------------------------------------------------------
+settings:
+  default_days_lookback: 3
+  request_timeout: 30
+  max_concurrent_requests: 10
+  user_agent: "Mozilla/5.0 (compatible; CurateAI/1.0)"

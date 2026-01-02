@@ -1,0 +1,91 @@
+# =============================================================================
+# Curate AI - Docker Compose Configuration
+# =============================================================================
+version: "3.8"
+
+services:
+  # ---------------------------------------------------------------------------
+  # PostgreSQL with pgvector extension
+  # ---------------------------------------------------------------------------
+  postgres:
+    image: pgvector/pgvector:pg16
+    container_name: curate-postgres
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: curate
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-curate_secret}
+      POSTGRES_DB: curate_ai
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+      - ./scripts/init-db.sql:/docker-entrypoint-initdb.d/init.sql:ro
+    ports:
+      - "5432:5432"
+    healthcheck:
+      test: [ "CMD-SHELL", "pg_isready -U curate -d curate_ai" ]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    networks:
+      - curate-network
+
+  # ---------------------------------------------------------------------------
+  # Curate AI Application
+  # ---------------------------------------------------------------------------
+  curate-ai:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: curate-ai-app
+    restart: unless-stopped
+    depends_on:
+      postgres:
+        condition: service_healthy
+    environment:
+      # Database
+      DATABASE_URL: postgresql+asyncpg://curate:${POSTGRES_PASSWORD:-curate_secret}@postgres:5432/curate_ai
+
+      # LLM Configuration (OpenAI via LiteLLM)
+      OPENAI_API_KEY: ${OPENAI_API_KEY}
+      LLM_MODEL: ${LLM_MODEL:-gpt-5-mini}
+
+      # Slack Webhook
+      SLACK_WEBHOOK_URL: ${SLACK_WEBHOOK_URL}
+
+      # Application
+      LOG_LEVEL: ${LOG_LEVEL:-INFO}
+      LOG_FORMAT: ${LOG_FORMAT:-json}
+      ARTIFACTS_DIR: /app/artifacts
+    volumes:
+      - artifacts_data:/app/artifacts
+      - logs_data:/app/logs
+    networks:
+      - curate-network
+    # For cron-triggered runs, override the command:
+    # command: ["python", "-m", "curate_ai.run", "--dry-run"]
+
+    # ---------------------------------------------------------------------------
+    # Cron Scheduler (Optional - for automated runs)
+    # ---------------------------------------------------------------------------
+  scheduler:
+    image: mcuadros/ofelia:latest
+    container_name: curate-scheduler
+    restart: unless-stopped
+    depends_on:
+      - curate-ai
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock:ro
+      - ./cron/config.ini:/etc/ofelia/config.ini:ro
+    networks:
+      - curate-network
+
+networks:
+  curate-network:
+    driver: bridge
+
+volumes:
+  postgres_data:
+    driver: local
+  artifacts_data:
+    driver: local
+  logs_data:
+    driver: local

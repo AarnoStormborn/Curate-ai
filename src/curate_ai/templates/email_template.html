@@ -1,0 +1,264 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>AI Research Brief</title>
+    <style>
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', sans-serif;
+            line-height: 1.6;
+            color: #1a1a1a;
+            max-width: 680px;
+            margin: 0 auto;
+            padding: 20px;
+            background-color: #ffffff;
+        }
+        
+        .header {
+            border-bottom: 3px solid #007AFF;
+            padding-bottom: 15px;
+            margin-bottom: 25px;
+        }
+        
+        .header h1 {
+            font-size: 26px;
+            font-weight: 700;
+            color: #1a1a1a;
+            margin: 0 0 5px 0;
+        }
+        
+        .header .date {
+            font-size: 14px;
+            color: #666;
+        }
+        
+        .angle {
+            background: linear-gradient(135deg, #f8f9fa 0%, #ffffff 100%);
+            border: 1px solid #e9ecef;
+            border-left: 4px solid #007AFF;
+            border-radius: 8px;
+            padding: 20px;
+            margin: 25px 0;
+        }
+        
+        .angle-number {
+            font-size: 12px;
+            font-weight: 600;
+            color: #007AFF;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            margin-bottom: 8px;
+        }
+        
+        .insight {
+            font-size: 18px;
+            font-weight: 600;
+            color: #1a1a1a;
+            margin-bottom: 12px;
+            line-height: 1.4;
+        }
+        
+        .why {
+            font-size: 15px;
+            color: #444;
+            margin-bottom: 15px;
+        }
+        
+        .audience {
+            font-size: 13px;
+            color: #666;
+            margin-bottom: 15px;
+            padding: 8px 12px;
+            background: #f0f0f0;
+            border-radius: 4px;
+            display: inline-block;
+        }
+        
+        .audience span {
+            font-weight: 600;
+        }
+        
+        .framing {
+            margin: 15px 0;
+        }
+        
+        .framing-title {
+            font-size: 14px;
+            font-weight: 600;
+            color: #333;
+            margin-bottom: 10px;
+        }
+        
+        .framing ul {
+            margin: 0;
+            padding-left: 20px;
+        }
+        
+        .framing li {
+            margin: 8px 0;
+            color: #444;
+            font-size: 14px;
+        }
+        
+        .links {
+            margin-top: 15px;
+            padding-top: 15px;
+            border-top: 1px solid #eee;
+        }
+        
+        .links-title {
+            font-size: 13px;
+            font-weight: 600;
+            color: #666;
+            margin-bottom: 8px;
+        }
+        
+        .links a {
+            display: block;
+            color: #007AFF;
+            text-decoration: none;
+            font-size: 13px;
+            margin: 4px 0;
+            word-break: break-all;
+        }
+        
+        .links a:hover {
+            text-decoration: underline;
+        }
+        
+        .confidence {
+            font-size: 12px;
+            color: #888;
+            margin-top: 12px;
+        }
+        
+        .confidence-bar {
+            height: 4px;
+            background: #e0e0e0;
+            border-radius: 2px;
+            margin-top: 4px;
+            overflow: hidden;
+        }
+        
+        .confidence-fill {
+            height: 100%;
+            background: linear-gradient(90deg, #007AFF, #00C853);
+            border-radius: 2px;
+        }
+        
+        .stats {
+            background: #f5f5f5;
+            border-radius: 8px;
+            padding: 15px;
+            margin-top: 30px;
+            font-size: 13px;
+            color: #666;
+        }
+        
+        .stats-title {
+            font-weight: 600;
+            color: #444;
+            margin-bottom: 8px;
+        }
+        
+        .stats-flow {
+            display: flex;
+            align-items: center;
+            flex-wrap: wrap;
+            gap: 5px;
+        }
+        
+        .stats-item {
+            background: #fff;
+            padding: 4px 10px;
+            border-radius: 4px;
+            font-weight: 500;
+        }
+        
+        .stats-arrow {
+            color: #999;
+        }
+        
+        .footer {
+            margin-top: 30px;
+            padding-top: 20px;
+            border-top: 1px solid #ddd;
+            font-size: 12px;
+            color: #888;
+            text-align: center;
+        }
+        
+        .footer p {
+            margin: 5px 0;
+        }
+        
+        .footer .run-id {
+            font-family: monospace;
+            color: #aaa;
+        }
+    </style>
+</head>
+<body>
+    <div class="header">
+        <h1>🔬 AI Research Brief</h1>
+        <p class="date">{{ brief.generated_at.strftime('%B %d, %Y at %H:%M UTC') }}</p>
+    </div>
+    
+    {% for angle in brief.angles %}
+    <div class="angle">
+        <div class="angle-number">Insight {{ loop.index }}</div>
+        <div class="insight">{{ angle.insight }}</div>
+        <div class="why">{{ angle.why_it_matters }}</div>
+        
+        <div class="audience">
+            <span>📍 Relevant for:</span> {{ angle.relevant_for | join(', ') }}
+        </div>
+        
+        <div class="framing">
+            <div class="framing-title">💡 Framing Ideas</div>
+            <ul>
+            {% for point in angle.framing_points %}
+                <li>{{ point }}</li>
+            {% endfor %}
+            </ul>
+        </div>
+        
+        {% if angle.supporting_links %}
+        <div class="links">
+            <div class="links-title">🔗 Sources</div>
+            {% for link in angle.supporting_links %}
+            <a href="{{ link }}">{{ link }}</a>
+            {% endfor %}
+        </div>
+        {% endif %}
+        
+        <div class="confidence">
+            Confidence: {{ (angle.confidence * 100) | int }}%
+            <div class="confidence-bar">
+                <div class="confidence-fill" style="width: {{ (angle.confidence * 100) | int }}%"></div>
+            </div>
+        </div>
+    </div>
+    {% endfor %}
+    
+    <div class="stats">
+        <div class="stats-title">📊 Run Statistics</div>
+        <div class="stats-flow">
+            <span class="stats-item">{{ brief.topics_considered }} topics</span>
+            <span class="stats-arrow">→</span>
+            <span class="stats-item">{{ brief.topics_filtered }} filtered</span>
+            <span class="stats-arrow">→</span>
+            <span class="stats-item">{{ brief.angles_generated }} angles</span>
+            <span class="stats-arrow">→</span>
+            <span class="stats-item">{{ brief.angles | length }} selected</span>
+        </div>
+    </div>
+    
+    <div class="footer">
+        <p>This brief was generated by <strong>Curate AI</strong></p>
+        <p>Human remains in the loop — no auto-publishing.</p>
+        <p class="run-id">Run ID: {{ brief.run_id }}</p>
+    </div>
+</body>
+</html>
