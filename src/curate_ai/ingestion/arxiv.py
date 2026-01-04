@@ -14,7 +14,7 @@ logger = get_logger(__name__)
 class ArxivFetcher(BaseScraper):
     """Fetcher for arXiv research papers."""
     
-    API_URL = "http://export.arxiv.org/api/query"
+    API_URL = "https://export.arxiv.org/api/query"
     
     def __init__(self, config: SourceConfig):
         super().__init__(config)
@@ -44,7 +44,10 @@ class ArxivFetcher(BaseScraper):
         }
         
         try:
-            async with httpx.AsyncClient(timeout=self.get_timeout()) as client:
+            async with httpx.AsyncClient(
+                timeout=self.get_timeout(),
+                follow_redirects=True,
+            ) as client:
                 response = await client.get(self.API_URL, params=params)
                 response.raise_for_status()
         except Exception as e:
