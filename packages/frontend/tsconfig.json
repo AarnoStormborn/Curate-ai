@@ -1,0 +1,12 @@
+{
+  "extends": "../../tsconfig.base.json",
+  "compilerOptions": {
+    "lib": ["ES2022", "DOM", "DOM.Iterable"],
+    "jsx": "react-jsx",
+    "moduleResolution": "bundler",
+    "noEmit": true,
+    "types": ["vite/client"],
+    "useDefineForClassFields": true
+  },
+  "include": ["src", "vite.config.ts", "vitest.config.ts"]
+}

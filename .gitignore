@@ -1,36 +1,24 @@
-# Python-generated files
-__pycache__/
-*.py[oc]
-build/
+# Dependencies
+node_modules/
+.pnpm-store/
+
+# Build output
 dist/
-wheels/
-*.egg-info
+build/
 
-# Virtual environments
-.venv
+# Runtime data (SQLite db, model cache, artifacts)
+data/
 
-# Environment files
+# Env
 .env
+.env.local
 
-# IDE
-.idea/
-.vscode/
-*.swp
-*.swo
-
-# Testing
-.coverage
-htmlcov/
-.pytest_cache/
-
-# Artifacts and storage
-artifacts/
+# Logs
 *.log
+logs/
 
-# Database
-*.db
-*.sqlite
-
-# OS
+# Misc
 .DS_Store
-Thumbs.db
+coverage/
+*.tsbuildinfo
+.pytest_cache/

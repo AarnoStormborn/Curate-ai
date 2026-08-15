@@ -1,0 +1,268 @@
+:root {
+  --bg: #0f1115;
+  --bg-soft: #161a22;
+  --border: #262c38;
+  --text: #e6e9ef;
+  --muted: #8b93a3;
+  --accent: #4f8cff;
+  --green: #3fb97f;
+  --red: #e5534b;
+  --yellow: #d9a13b;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+body {
+  margin: 0;
+  background: var(--bg);
+  color: var(--text);
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+  line-height: 1.55;
+}
+
+.app {
+  max-width: 860px;
+  margin: 0 auto;
+  padding: 28px 20px 80px;
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.header h1 {
+  margin: 0;
+  font-size: 24px;
+  letter-spacing: -0.02em;
+}
+
+.logo {
+  margin-right: 4px;
+}
+
+.tagline {
+  margin: 4px 0 0;
+  color: var(--muted);
+  font-size: 13px;
+}
+
+.search-bar {
+  display: flex;
+  gap: 8px;
+}
+
+.search-bar input {
+  flex: 1;
+  padding: 12px 14px;
+  font-size: 15px;
+  border-radius: 10px;
+  border: 1px solid var(--border);
+  background: var(--bg-soft);
+  color: var(--text);
+  outline: none;
+}
+
+.search-bar input:focus {
+  border-color: var(--accent);
+}
+
+.search-bar button {
+  padding: 12px 22px;
+  font-size: 15px;
+  border-radius: 10px;
+  border: none;
+  background: var(--accent);
+  color: #fff;
+  cursor: pointer;
+  font-weight: 600;
+}
+
+.search-bar button:disabled {
+  opacity: 0.5;
+  cursor: default;
+}
+
+.controls {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  flex-wrap: wrap;
+  font-size: 13px;
+  color: var(--muted);
+}
+
+.toggle {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  cursor: pointer;
+}
+
+.controls select {
+  padding: 6px 10px;
+  border-radius: 8px;
+  border: 1px solid var(--border);
+  background: var(--bg-soft);
+  color: var(--text);
+}
+
+.ingest-actions {
+  margin-left: auto;
+  display: flex;
+  gap: 8px;
+}
+
+button.ghost {
+  padding: 6px 12px;
+  border-radius: 8px;
+  border: 1px solid var(--border);
+  background: transparent;
+  color: var(--muted);
+  cursor: pointer;
+  font-size: 13px;
+}
+
+button.ghost:hover {
+  color: var(--text);
+  border-color: var(--muted);
+}
+
+.error {
+  padding: 10px 14px;
+  border-radius: 8px;
+  border: 1px solid var(--red);
+  color: var(--red);
+  background: rgba(229, 83, 75, 0.08);
+  font-size: 14px;
+}
+
+.results {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.results-meta {
+  display: flex;
+  justify-content: space-between;
+  font-size: 13px;
+  color: var(--muted);
+}
+
+.card {
+  background: var(--bg-soft);
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  padding: 16px 18px;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.card-head {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: 12px;
+}
+
+.card h3 {
+  margin: 0;
+  font-size: 16px;
+  letter-spacing: -0.01em;
+}
+
+.card h3 a {
+  color: var(--text);
+  text-decoration: none;
+}
+
+.card h3 a:hover {
+  color: var(--accent);
+}
+
+.badges {
+  display: flex;
+  gap: 6px;
+  flex-shrink: 0;
+}
+
+.badge {
+  font-size: 11px;
+  padding: 2px 8px;
+  border-radius: 20px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.03em;
+}
+
+.badge-rrf {
+  background: rgba(79, 140, 255, 0.15);
+  color: var(--accent);
+}
+
+.badge-arxiv {
+  background: rgba(227, 76, 38, 0.2);
+  color: #ff9d7e;
+}
+
+.badge-rss {
+  background: rgba(217, 161, 59, 0.18);
+  color: var(--yellow);
+}
+
+.badge-reddit {
+  background: rgba(255, 102, 0, 0.18);
+  color: #ffab66;
+}
+
+.badge-seed {
+  background: rgba(63, 185, 127, 0.16);
+  color: var(--green);
+}
+
+.snippet {
+  margin: 0;
+  color: #b9c0cd;
+  font-size: 14px;
+}
+
+.card-foot {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  flex-wrap: wrap;
+  font-size: 12px;
+  color: var(--muted);
+}
+
+.score {
+  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+  color: #a8b3c5;
+}
+
+.from {
+  font-style: italic;
+}
+
+.tags {
+  margin-left: auto;
+  color: var(--muted);
+}
+
+.empty {
+  padding: 30px;
+  text-align: center;
+  color: var(--muted);
+  border: 1px dashed var(--border);
+  border-radius: 12px;
+}
+
+.footer {
+  margin-top: 12px;
+  padding-top: 14px;
+  border-top: 1px solid var(--border);
+  font-size: 12px;
+  color: var(--muted);
+}

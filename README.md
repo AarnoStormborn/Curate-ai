@@ -1,206 +1,159 @@
-# Curate AI
+# Curate AI — retrieval-first research curation
 
-**Personal, self-hosted AI/ML research and insight generation system.**
+A self-hosted research curation and **retrieval** platform rebuilt in TypeScript.
+Ingest AI/ML research from arXiv, RSS feeds, and Reddit — or start from a bundled
+sample corpus — then search it with a hybrid retrieval engine:
 
-Curate AI is a batch-oriented research curation system that runs every 2-3 days to:
-- 🔬 Research recent AI/ML developments from arXiv, company blogs, and GitHub
-- 🎯 Filter out hype and redundancy
-- 💡 Generate opinionated, novel angles suitable for LinkedIn posts
-- 💬 Send you a Slack notification with a concise research brief
+- **BM25 keyword search** (SQLite FTS5)
+- **Dense semantic search** (local ONNX embeddings via transformers.js — no API keys)
+- **Hybrid fusion** with reciprocal rank fusion (RRF)
+- Metadata filters (source type, date range), chunk-level snippets with score breakdowns
 
-**Human remains in the loop. Curate never auto-publishes.**
+Stack: **Fastify** (API) · **React + Vite** (UI) · **SQLite + sqlite-vec + FTS5** ·
+**Docker** · **pnpm workspace monorepo**.
 
-## Architecture
+> Successor to the original Python pipeline (see [`docs/legacy.md`](docs/legacy.md) for
+> the full analysis of what was kept and what was rebuilt). Migration plan:
+> [`docs/plan.md`](docs/plan.md).
 
-```
-┌─────────────────────────────────────────────────────────────┐
-│                       Cron Scheduler                         │
-└─────────────────────────┬───────────────────────────────────┘
-                          │
-┌─────────────────────────▼───────────────────────────────────┐
-│                    Agent Pipeline                            │
-│  ┌──────────────┐  ┌──────────────┐  ┌──────────────┐       │
-│  │ Source Scout │→ │  Relevance   │→ │   Insight    │       │
-│  │    Agent     │  │    Filter    │  │  Generator   │       │
-│  └──────────────┘  └──────────────┘  └──────────────┘       │
-│          ↓                                   ↓               │
-│  ┌──────────────┐  ┌──────────────┐  ┌──────────────┐       │
-│  │  Redundancy  │← │    Asset     │← │    Editor    │       │
-│  │   Checker    │  │   Curator    │  │    Agent     │       │
-│  └──────────────┘  └──────────────┘  └──────────────┘       │
-└─────────────────────────┬───────────────────────────────────┘
-                          │
-┌─────────────────────────▼───────────────────────────────────┐
-│                    Memory Layer                              │
-│  ┌──────────────────────┐  ┌────────────────────────────┐   │
-│  │  PostgreSQL          │  │  pgvector                  │   │
-│  │  (Structured Memory) │  │  (Semantic Memory)          │   │
-│  └──────────────────────┘  └────────────────────────────┘   │
-└─────────────────────────────────────────────────────────────┘
-                          │
-                          ▼
-                    💬 Slack Brief
-```
-
-## Features
-
-- **6 Modular Agents** with LiteLLM (OpenAI) and structured Pydantic I/O
-- **Stateless Execution** - All memory externalized to PostgreSQL + pgvector
-- **Batch-Oriented** - Runs via cron, no long-running processes
-- **Opinionated Output** - No neutral takes, focuses on "why it matters"
-- **Redundancy Detection** - Semantic similarity to avoid repeating themes
-- **Deterministic & Replayable** - Config hashing, full audit trail
-
-## Quick Start
-
-### Prerequisites
-
-- Python 3.10+
-- Docker & Docker Compose
-- OpenAI API key
-
-### Installation
+## Quick start
 
 ```bash
-# Clone and enter directory
-cd curate-ai
+# 1. Install (Node >= 24, pnpm)
+pnpm install
 
-# Copy environment config
-cp .env.example .env
+# 2. Seed the bundled sample corpus (downloads the embedding model on first run)
+pnpm seed
 
-# Edit .env with your credentials
-# - OPENAI_API_KEY (required)
-# - SLACK_WEBHOOK_URL (for notifications)
-
-# Start services
-docker-compose up -d
-
-# Run migrations
-docker-compose exec curate-ai alembic upgrade head
-
-# Test the pipeline (dry run)
-docker-compose exec curate-ai python -m curate_ai.run --dry-run
+# 3. Start the API + dev UI in two terminals
+pnpm dev:backend    # Fastify on :4000
+pnpm dev:frontend   # Vite on :5173 (proxies /api → :4000)
 ```
 
-### Local Development
+Open http://localhost:5173 and search. Or hit the API directly:
 
 ```bash
-# Create virtual environment
-python -m venv .venv
-source .venv/bin/activate
-
-# Install with dev dependencies
-pip install -e ".[dev]"
-
-# Start PostgreSQL only
-docker-compose up -d postgres
-
-# Run migrations
-alembic upgrade head
-
-# Run pipeline
-python -m curate_ai.run --dry-run --debug
+curl "localhost:4000/api/search?q=vector%20database%20index"
 ```
 
-## Usage
+### Fetch live sources
 
 ```bash
-# Full pipeline with Slack notification
-curate-ai
+# CLI: fetch arXiv + RSS + Reddit (config in config/sources.yml), index, exit
+pnpm --filter @curate-ai/backend ingest --live --sources=arxiv
 
-# Dry run (no notification)
-curate-ai --dry-run
-
-# Debug mode
-curate-ai --debug
-
-# Test Slack notification
-curate-ai --test-notify
+# API (async, returns the ingest run)
+curl -X POST localhost:4000/api/ingest -H "content-type: application/json" \
+  -d '{"mode":"live","sources":["arxiv","rss","reddit"]}'
 ```
 
-## Configuration
+## API
 
-All configuration via environment variables (see `.env.example`):
+| Endpoint | Description |
+|----------|-------------|
+| `GET /api/search?q=&hybrid=&sourceType=&from=&to=&limit=` | Hybrid (or BM25-only) search with score breakdown |
+| `GET /api/documents?limit=&offset=` · `GET /api/documents/:id` | List / inspect documents + chunks |
+| `POST /api/documents` · `DELETE /api/documents/:id` | Manual document add / remove |
+| `POST /api/ingest` | Run ingestion: `{mode:"seed"\|"live", sources?:[]}` |
+| `GET /api/stats` | Index counts, sources, embedding model |
+| `GET /api/health` | Liveness |
 
-| Variable | Description | Default |
-|----------|-------------|---------|
-| `DATABASE_URL` | PostgreSQL connection | `postgresql+asyncpg://...` |
-| `OPENAI_API_KEY` | OpenAI API key | *required* |
-| `LLM_MODEL` | LLM model (via LiteLLM) | `gpt-5-mini` |
-| `SLACK_WEBHOOK_URL` | Slack webhook URL | *required for notifications* |
-| `SIMILARITY_THRESHOLD` | Redundancy threshold | `0.85` |
-| `DAYS_LOOKBACK` | Days to look back | `3` |
+### Search response shape
 
-
-## Database Schema
-
-| Table | Purpose |
-|-------|---------|
-| `agent_runs` | Pipeline execution records |
-| `topics_seen` | Discovered topic candidates |
-| `angles_generated` | Insight angles with embeddings |
-| `angle_scores` | Scoring history |
-| `rejected_items` | Rejection reasons |
-| `emails_sent` | Email dispatch log |
-
-## Design Principles
-
-1. **Agents are stateless** - No in-process memory between runs
-2. **All memory externalized** - PostgreSQL + pgvector
-3. **Batch execution** - Triggered by cron, clean exit
-4. **Deterministic runs** - Config hashed, fully replayable
-5. **Filtering over generation** - Prefer to filter/frame, not raw generate
-6. **Opinionated output mandatory** - No neutral takes allowed
-
-## Scheduling
-
-The system uses [Ofelia](https://github.com/mcuadros/ofelia) for Docker-based scheduling:
-
-```ini
-# cron/config.ini
-[job-exec "curate-ai-run"]
-schedule = 0 6 */2 * *  # Every 2 days at 6 AM UTC
-container = curate-ai-app
-command = python -m curate_ai.run
+```jsonc
+{
+  "query": "vector database index",
+  "results": [{
+    "documentId": "...", "chunkId": 3,
+    "title": "Vector databases and ANN indexes…",
+    "score": {
+      "rrf": 0.0328,          // fused via reciprocal rank fusion
+      "bm25": 5.173,          // present if BM25 ranked it
+      "vector": 0.587,        // cosine similarity if vector ranked it
+      "from": ["bm25", "vector"]
+    },
+    "snippet": "Vector databases index embeddings…"
+  }],
+  "meta": { "tookMs": 265, "candidates": 7, "from": { "bm25": 1, "vector": 12 } }
+}
 ```
 
-Or use system cron:
-```cron
-0 6 */2 * * cd /path/to/curate-ai && docker-compose exec -T curate-ai python -m curate_ai.run
+## Configuration (`.env`)
+
+| Variable | Default | Notes |
+|----------|---------|-------|
+| `PORT` / `HOST` | `4000` / `0.0.0.0` | API bind |
+| `DATABASE_PATH` | `./data/curate.db` | SQLite file (WAL) |
+| `EMBEDDING_MODEL` | `Xenova/all-MiniLM-L6-v2` | transformers.js model (downloaded to `HF_CACHE`) |
+| `EMBEDDING_DIM` | `384` | Must match the model; changes need a fresh DB |
+| `HF_CACHE` | `./data/hf-cache` | Model cache (volume-mount in Docker) |
+| `INGEST_SOURCES` | `arxiv,rss,reddit` | Live sources |
+| `ARXIV_MAX_RESULTS` | `30` | Cap per arXiv fetch |
+| `FRONTEND_ORIGIN` | `http://localhost:5173` | CORS |
+
+Data sources (feeds, subreddits, arXiv categories) live in [`config/sources.yml`](config/sources.yml).
+
+## Docker
+
+```bash
+docker compose up --build
+# UI: http://localhost:8080  (nginx serves the SPA, proxies /api → backend)
 ```
 
-## Email Output
+`curate-data` volume persists the SQLite DB and model cache. Backend runs as a
+non-root user with a healthcheck.
 
-Each brief contains:
-- **Top 2-3 post-worthy angles**
-- For each angle:
-  - Core insight (≤2 lines)
-  - Why it matters
-  - Who it's relevant for
-  - Framing suggestions
-  - Supporting links/assets
-  - Confidence score
+## Retrieval design
+
+```
+documents ──chunk──► document_chunks ──embed──► chunks_vec (sqlite-vec, cosine ANN)
+    │                                                      │
+    └──────────────► documents_fts (FTS5, BM25) ───────────┘
+                              │
+                        query ┴──► BM25 hits + vector hits
+                                     │
+                            reciprocal rank fusion (RRF)
+                                     │
+                         filters → snippet → results
+```
+
+- **Chunking**: sentence-aligned, overlapping (600 chars / 80 overlap), paragraph-aware,
+  hard-split for long sentences — `src/retrieval/chunker.ts`
+- **Embeddings**: local ONNX (`all-MiniLM-L6-v2`, q8 quantized), normalized, cached on
+  disk; swappable via the `Embedder` interface (`src/embeddings/`)
+- **BM25**: FTS5 with porter stemming; queries are token-sanitized
+- **Hybrid**: RRF with `k=60` over both ranked lists (`src/retrieval/hybrid.ts`)
+- **Audit**: every ingest run is recorded (`ingest_runs`) with per-source counts/errors
 
 ## Development
 
 ```bash
-# Run tests
-pytest tests/ -v
-
-# With coverage
-pytest tests/ --cov=curate_ai
-
-# Lint
-ruff check .
-
-# Type check
-mypy src/
+pnpm -r typecheck        # strict TS across all packages
+pnpm -r test             # backend: vitest (unit + API + ingestion fixtures)
+                         # frontend: vitest + testing-library
+pnpm --filter @curate-ai/backend test:watch
+pnpm --filter @curate-ai/backend dev
 ```
+
+### CLI
+
+```bash
+pnpm --filter @curate-ai/backend serve                 # API server
+pnpm --filter @curate-ai/backend seed                  # index bundled corpus
+pnpm --filter @curate-ai/backend ingest [--live]       # seed or live fetch + index
+pnpm --filter @curate-ai/backend search "query"        # terminal search
+pnpm --filter @curate-ai/backend stats                 # index stats
+```
+
+## Roadmap (retrieval techniques to add)
+
+- Query expansion & multi-query retrieval
+- Reranking (cross-encoder / LLM judge) over fused candidates
+- Hybrid BM25+vector at the **chunk** level with doc-level aggregation
+- Semantic cache for repeated queries
+- Vector-filter pushdown in sqlite-vec (`+metadata` columns)
+- Evaluation harness: gold-set recall@k / MRR / NDCG dashboards
 
 ## License
 
 MIT
-
----
-
-*Curate AI: Research intelligence, not a chatbot.*

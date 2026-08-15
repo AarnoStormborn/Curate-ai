@@ -1,91 +1,44 @@
-# =============================================================================
-# Curate AI - Docker Compose Configuration
-# =============================================================================
-version: "3.8"
-
+# ============================================================================
+# Curate AI — Docker Compose
+# ============================================================================
 services:
-  # ---------------------------------------------------------------------------
-  # PostgreSQL with pgvector extension
-  # ---------------------------------------------------------------------------
-  postgres:
-    image: pgvector/pgvector:pg16
-    container_name: curate-postgres
-    restart: unless-stopped
-    environment:
-      POSTGRES_USER: curate
-      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-curate_secret}
-      POSTGRES_DB: curate_ai
-    volumes:
-      - postgres_data:/var/lib/postgresql/data
-      - ./scripts/init-db.sql:/docker-entrypoint-initdb.d/init.sql:ro
-    ports:
-      - "5432:5432"
-    healthcheck:
-      test: [ "CMD-SHELL", "pg_isready -U curate -d curate_ai" ]
-      interval: 10s
-      timeout: 5s
-      retries: 5
-    networks:
-      - curate-network
-
-  # ---------------------------------------------------------------------------
-  # Curate AI Application
-  # ---------------------------------------------------------------------------
-  curate-ai:
+  backend:
     build:
       context: .
-      dockerfile: Dockerfile
-    container_name: curate-ai-app
+      dockerfile: Dockerfile.backend
+    container_name: curate-backend
     restart: unless-stopped
-    depends_on:
-      postgres:
-        condition: service_healthy
     environment:
-      # Database
-      DATABASE_URL: postgresql+asyncpg://curate:${POSTGRES_PASSWORD:-curate_secret}@postgres:5432/curate_ai
-
-      # LLM Configuration (OpenAI via LiteLLM)
-      OPENAI_API_KEY: ${OPENAI_API_KEY}
-      LLM_MODEL: ${LLM_MODEL:-gpt-5-mini}
-
-      # Slack Webhook
-      SLACK_WEBHOOK_URL: ${SLACK_WEBHOOK_URL}
-
-      # Application
-      LOG_LEVEL: ${LOG_LEVEL:-INFO}
-      LOG_FORMAT: ${LOG_FORMAT:-json}
-      ARTIFACTS_DIR: /app/artifacts
+      DATABASE_PATH: /app/data/curate.db
+      HF_CACHE: /app/data/hf-cache
+      PORT: 4000
+      HOST: 0.0.0.0
+      LOG_LEVEL: ${LOG_LEVEL:-info}
+      # Optionally override the local embedding model / dimension:
+      # EMBEDDING_MODEL: ${EMBEDDING_MODEL:-Xenova/all-MiniLM-L6-v2}
+      # EMBEDDING_DIM: 384
     volumes:
-      - artifacts_data:/app/artifacts
-      - logs_data:/app/logs
+      - curate-data:/app/data
     networks:
-      - curate-network
-    # For cron-triggered runs, override the command:
-    # command: ["python", "-m", "curate_ai.run", "--dry-run"]
+      - curate-net
 
-    # ---------------------------------------------------------------------------
-    # Cron Scheduler (Optional - for automated runs)
-    # ---------------------------------------------------------------------------
-  scheduler:
-    image: mcuadros/ofelia:latest
-    container_name: curate-scheduler
+  frontend:
+    build:
+      context: .
+      dockerfile: Dockerfile.frontend
+    container_name: curate-frontend
     restart: unless-stopped
     depends_on:
-      - curate-ai
-    volumes:
-      - /var/run/docker.sock:/var/run/docker.sock:ro
-      - ./cron/config.ini:/etc/ofelia/config.ini:ro
+      - backend
+    ports:
+      - "${PORT:-8080}:80"
     networks:
-      - curate-network
+      - curate-net
 
 networks:
-  curate-network:
+  curate-net:
     driver: bridge
 
 volumes:
-  postgres_data:
-    driver: local
-  artifacts_data:
-    driver: local
-  logs_data:
+  curate-data:
     driver: local

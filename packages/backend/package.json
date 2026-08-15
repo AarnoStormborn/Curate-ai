@@ -1,0 +1,39 @@
+{
+  "name": "@curate-ai/backend",
+  "version": "0.2.0",
+  "private": true,
+  "type": "module",
+  "main": "dist/index.js",
+  "scripts": {
+    "dev": "tsx watch src/index.ts serve",
+    "serve": "tsx src/index.ts serve",
+    "build": "tsup",
+    "typecheck": "tsc --noEmit",
+    "test": "vitest run",
+    "test:watch": "vitest",
+    "seed": "tsx src/index.ts seed",
+    "ingest": "tsx src/index.ts ingest"
+  },
+  "dependencies": {
+    "@curate-ai/shared": "workspace:*",
+    "@fastify/cors": "^11.0.1",
+    "@huggingface/transformers": "^3.4.0",
+    "better-sqlite3": "^12.2.0",
+    "dotenv": "^16.4.7",
+    "fast-xml-parser": "^5.0.9",
+    "fastify": "^5.2.1",
+    "pino": "^9.6.0",
+    "rss-parser": "^3.13.0",
+    "sqlite-vec": "^0.1.6",
+    "yaml": "^2.7.0",
+    "zod": "^3.25.0"
+  },
+  "devDependencies": {
+    "@types/better-sqlite3": "^7.6.12",
+    "@types/node": "^24.0.0",
+    "tsup": "^8.3.5",
+    "tsx": "^4.19.2",
+    "typescript": "^5.7.3",
+    "vitest": "^3.0.4"
+  }
+}

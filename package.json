@@ -1,0 +1,20 @@
+{
+  "name": "curate-ai",
+  "version": "0.2.0",
+  "private": true,
+  "description": "Retrieval-first AI/ML research curation — Fastify + React + SQLite",
+  "type": "module",
+  "scripts": {
+    "build": "pnpm -r build",
+    "typecheck": "pnpm -r typecheck",
+    "test": "pnpm -r test",
+    "dev:backend": "pnpm --filter @curate-ai/backend dev",
+    "dev:frontend": "pnpm --filter @curate-ai/frontend dev",
+    "seed": "pnpm --filter @curate-ai/backend seed",
+    "serve": "pnpm --filter @curate-ai/backend serve"
+  },
+  "engines": {
+    "node": ">=24"
+  },
+  "packageManager": "pnpm@11.21.0"
+}

@@ -1,0 +1,12 @@
+node_modules
+**/dist
+data
+**/data
+.git
+.env
+.dockerignore
+Dockerfile*
+docker-compose*
+docs
+tests
+*.md

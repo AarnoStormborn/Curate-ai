@@ -1,0 +1,19 @@
+# ============================================================================
+# Curate AI — Frontend (React static build served by nginx, /api proxied)
+# ============================================================================
+FROM node:24-slim AS build
+RUN corepack enable
+WORKDIR /app
+
+COPY package.json pnpm-lock.yaml pnpm-workspace.yaml ./
+COPY packages/shared/package.json packages/shared/package.json
+COPY packages/frontend/package.json packages/frontend/package.json
+RUN pnpm install --frozen-lockfile
+
+COPY . .
+RUN pnpm --filter @curate-ai/frontend build
+
+FROM nginx:alpine
+COPY --from=build /app/packages/frontend/dist /usr/share/nginx/html
+COPY nginx.conf /etc/nginx/conf.d/default.conf
+EXPOSE 80
