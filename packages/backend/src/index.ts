@@ -10,6 +10,10 @@ import { countChunks, countDocuments, lastIngestAt, sourceCounts } from "./db/re
 import { startServer } from "./server.js";
 import { createSearchService } from "./retrieval/search.js";
 import { getRecentRuns } from "./db/repo.js";
+import { evaluate, EVAL_MODES, formatEvalTable } from "./retrieval/evaluate.js";
+import { getDocumentByUrl } from "./db/repo.js";
+import { GOLD_SET } from "./seed/gold-set.js";
+import type { SearchMode } from "@curate-ai/shared";
 
 function printJson(value: unknown): void {
   console.log(JSON.stringify(value, null, 2));
@@ -23,6 +27,8 @@ Usage:
   curate-ai seed                  Index the bundled sample corpus
   curate-ai ingest [--live] [--sources arxiv,rss,reddit]
                                   Index seed corpus, or fetch live sources
+  curate-ai eval [--k 10] [--mode all|hybrid|bm25|vector]
+                                  Run the gold set and report recall@k / MRR / NDCG
   curate-ai search "query"        CLI search against the index
   curate-ai stats                 Index + run statistics
   curate-ai runs                  Recent ingest runs
@@ -84,6 +90,36 @@ async function main(): Promise<void> {
         const result = await indexDocuments(db, embedder, SEED_DOCUMENTS);
         printJson({ mode: "seed", ...result, tookMs: Math.round(performance.now() - t0) });
       }
+      db.close();
+      return;
+    }
+
+    case "eval": {
+      const k = Number(args.find((a) => a.startsWith("--k="))?.split("=")[1] ?? 10);
+      const modeArg = args.find((a) => a.startsWith("--mode="))?.split("=")[1] ?? "all";
+      const modes: SearchMode[] =
+        modeArg === "all" ? [...EVAL_MODES] : ([modeArg] as SearchMode[]);
+
+      const db = openDb(config.DATABASE_PATH, config.EMBEDDING_DIM);
+      const embedder = createLocalEmbedder(config.EMBEDDING_MODEL, config.EMBEDDING_DIM, config.HF_CACHE);
+      const search = createSearchService(db, embedder);
+
+      const results = [];
+      for (const mode of modes) {
+        const result = await evaluate(search, GOLD_SET, mode, {
+          k,
+          resolveUrl: (url) => getDocumentByUrl(db, url)?.id ?? null,
+        });
+        results.push(result);
+        const misses = result.queries.filter((q) => q.recallAtK < 1);
+        if (misses.length > 0) {
+          console.log(`\n[${mode}] missed queries (recall < 1):`);
+          for (const m of misses) {
+            console.log(`  - ${m.query}  (recall=${m.recallAtK.toFixed(2)} mrr=${m.mrr.toFixed(2)})`);
+          }
+        }
+      }
+      console.log("\n" + formatEvalTable(results));
       db.close();
       return;
     }

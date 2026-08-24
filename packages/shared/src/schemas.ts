@@ -41,11 +41,17 @@ export type Chunk = z.infer<typeof Chunk>;
 // Search API
 // ============================================================================
 
+/** Retrieval mode — used by the eval harness to compare techniques. */
+export const SearchMode = z.enum(["hybrid", "bm25", "vector"]);
+export type SearchMode = z.infer<typeof SearchMode>;
+
 export const SearchRequest = z.object({
   q: z.string().min(1).max(500),
   limit: z.number().int().min(1).max(50).default(10),
   /** Combine BM25 + vector results via reciprocal rank fusion. */
   hybrid: z.boolean().default(true),
+  /** Override hybrid: explicit retrieval mode (evaluator uses this). */
+  mode: SearchMode.optional(),
   sourceType: SourceType.optional(),
   /** Inclusive ISO date filter on publishedAt. */
   from: z.string().optional(),
@@ -86,6 +92,7 @@ export const SearchResponse = z.object({
     tookMs: z.number(),
     candidates: z.number(),
     from: z.object({ bm25: z.number(), vector: z.number() }),
+    mode: SearchMode,
   }),
 });
 export type SearchResponse = z.infer<typeof SearchResponse>;

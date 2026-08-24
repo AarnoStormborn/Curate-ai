@@ -26,7 +26,7 @@ const MOCK_SEARCH = {
       publishedAt: "2025-01-01T00:00:00Z",
     },
   ],
-  meta: { tookMs: 3, candidates: 1, from: { bm25: 1, vector: 1 } },
+  meta: { tookMs: 3, candidates: 1, from: { bm25: 1, vector: 1 }, mode: "hybrid" },
 };
 
 function mockFetch(): void {

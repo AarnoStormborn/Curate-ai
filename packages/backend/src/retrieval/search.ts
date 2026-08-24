@@ -1,5 +1,5 @@
 import type Database from "better-sqlite3";
-import type { SearchRequest, SearchResponse, SearchResult, ScoreBreakdown } from "@curate-ai/shared";
+import type { SearchMode, SearchRequest, SearchResponse, SearchResult, ScoreBreakdown } from "@curate-ai/shared";
 import type { Embedder } from "../embeddings/types.js";
 import { bm25Search } from "./bm25.js";
 import { vectorSearch } from "./vector.js";
@@ -49,16 +49,16 @@ export function createSearchService(db: Database.Database, embedder: Embedder): 
   return {
     async search(req: SearchRequest): Promise<SearchResponse> {
       const t0 = performance.now();
-      const hybrid = req.hybrid ?? true;
+      const mode: SearchMode = req.mode ?? (req.hybrid === false ? "bm25" : "hybrid");
       const limit = req.limit ?? 10;
       const includeSnippet = req.includeSnippet ?? true;
 
-      // 1. Run retrieval techniques in parallel (vector search only when hybrid).
+      // 1. Run the requested retrieval technique(s) in parallel.
       const [bm25Hits, queryEmbedding] = await Promise.all([
-        Promise.resolve(bm25Search(db, req.q, limit * 4)),
-        hybrid ? embedder.embed([req.q]).then((rows) => rows[0]) : Promise.resolve(undefined),
+        mode !== "vector" ? Promise.resolve(bm25Search(db, req.q, limit * 4)) : Promise.resolve([] as Awaited<ReturnType<typeof bm25Search>>),
+        mode !== "bm25" ? embedder.embed([req.q]).then((rows) => rows[0]) : Promise.resolve(undefined),
       ]);
-      const vecHits = hybrid && queryEmbedding ? vectorSearch(db, queryEmbedding, limit * 4) : [];
+      const vecHits = mode !== "bm25" && queryEmbedding ? vectorSearch(db, queryEmbedding, limit * 4) : [];
 
       // 2. Roll vector chunk hits up to documents (best distance per doc).
       const bestVec = new Map<string, { distance: number; chunkId: number }>();
@@ -72,10 +72,11 @@ export function createSearchService(db: Database.Database, embedder: Embedder): 
         .sort((a, b) => a[1].distance - b[1].distance)
         .map(([id]) => ({ id }));
 
-      // 3. Fuse ranked lists with RRF.
-      const fused = hybrid
-        ? rrfFuse([bm25Hits.map((h) => ({ id: h.documentId })), vecRanked])
-        : rrfFuse([bm25Hits.map((h) => ({ id: h.documentId }))]);
+      // 3. Fuse ranked lists with RRF (single-list fusion = rank-only ordering).
+      const lists: Array<Array<{ id: string }>> = [];
+      if (mode !== "vector") lists.push(bm25Hits.map((h) => ({ id: h.documentId })));
+      if (mode !== "bm25") lists.push(vecRanked);
+      const fused = rrfFuse(lists);
 
       const bm25Scores = new Map(bm25Hits.map((h) => [h.documentId, h.score] as const));
       const bm25Content = new Map(bm25Hits.map((h) => [h.documentId, h.content] as const));
@@ -148,6 +149,7 @@ export function createSearchService(db: Database.Database, embedder: Embedder): 
           tookMs: Math.round(performance.now() - t0),
           candidates: filtered.length,
           from: { bm25: bm25Hits.length, vector: vecHits.length },
+          mode,
         },
       };
     },

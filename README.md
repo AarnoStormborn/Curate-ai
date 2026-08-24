@@ -141,18 +141,42 @@ pnpm --filter @curate-ai/backend dev
 pnpm --filter @curate-ai/backend serve                 # API server
 pnpm --filter @curate-ai/backend seed                  # index bundled corpus
 pnpm --filter @curate-ai/backend ingest [--live]       # seed or live fetch + index
+pnpm --filter @curate-ai/backend eval [--k 10] [--mode all|hybrid|bm25|vector]
+                                                       # gold-set eval: recall@k / MRR / NDCG
 pnpm --filter @curate-ai/backend search "query"        # terminal search
 pnpm --filter @curate-ai/backend stats                 # index stats
 ```
 
+## Evaluation
+
+A gold set of 27 queries (in `packages/backend/src/seed/gold-set.ts`, referencing
+seed-corpus documents by URL) measures retrieval quality per mode:
+
+```bash
+pnpm --filter @curate-ai/backend eval           # compare hybrid vs bm25 vs vector
+```
+
+Current baseline (real model, seed + live corpus): `recall@10 / MRR / NDCG@10`
+
+```
+mode     recall@k  mrr      ndcg@k
+hybrid      1.000    0.975    0.982
+bm25        0.481    0.481    0.481
+vector      1.000    0.957    0.968
+```
+
+Add queries for your own corpus by URL; every retrieval change can now be
+proven or rejected against this baseline.
+
 ## Roadmap (retrieval techniques to add)
 
+- ✅ **Evaluation harness** — gold set + recall@k / MRR / NDCG, mode comparison (`pnpm eval`)
 - Query expansion & multi-query retrieval
-- Reranking (cross-encoder / LLM judge) over fused candidates
+- Reranking (cross-encoder / LLM judge) over fused candidates — measure vs baseline
 - Hybrid BM25+vector at the **chunk** level with doc-level aggregation
 - Semantic cache for repeated queries
 - Vector-filter pushdown in sqlite-vec (`+metadata` columns)
-- Evaluation harness: gold-set recall@k / MRR / NDCG dashboards
+- Eval dashboards in the UI
 
 ## License
 

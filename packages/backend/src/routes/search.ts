@@ -12,6 +12,7 @@ function parseSearchQuery(query: Record<string, unknown>): SearchRequest {
     q: query.q,
     limit: query.limit !== undefined ? Number(query.limit) : undefined,
     hybrid: query.hybrid !== undefined ? query.hybrid !== "false" : undefined,
+    mode: query.mode,
     sourceType: query.sourceType,
     from: query.from,
     to: query.to,

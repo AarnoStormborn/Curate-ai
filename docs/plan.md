@@ -126,17 +126,22 @@ Embedding dimension is fixed at table creation — changing the model requires a
 ## 6. Status & what's next
 
 **Done (baseline):** monorepo scaffold · local embedding pipeline · hybrid search API ·
-documents CRUD · seed + live ingest · React search UI · Docker · 42 tests green ·
+documents CRUD · seed + live ingest · React search UI · Docker · 54 tests green ·
 strict typecheck clean.
+
+**Done (eval harness):** `src/retrieval/metrics.ts` + `evaluate.ts`, 27-query gold set
+in `src/seed/gold-set.ts`, `curate-ai eval` CLI with mode comparison and missed-query
+reporting. Baseline measured on the real model: **hybrid** recall@10 1.000 / MRR 0.975 /
+NDCG 0.982 · **vector** 1.000 / 0.957 / 0.968 · **bm25** 0.481 / 0.481 / 0.481.
 
 **Next phases:**
 
+- **Phase 3 — retrieval depth**: query expansion, chunk-level hybrid with doc
+  aggregation, vector metadata-filter pushdown, semantic cache — each measured
+  against the eval baseline above.
 - **Phase 2 — pi SDK LLM integration**: `stageSession()` per stage via
   `createAgentSession` + `defineTool` structured-output tools (score_topics,
   generate_angle, rerank). Replaces the legacy placeholder agents with real LLM stages
-  and adds LLM reranking to search.
-- **Phase 3 — retrieval depth**: query expansion, chunk-level hybrid with doc
-  aggregation, vector metadata-filter pushdown, semantic cache, eval harness
-  (recall@k / MRR / NDCG).
+  and adds LLM reranking to search (measure vs the eval baseline).
 - **Phase 4 — scheduling**: in-container cron or ofelia-free host cron + `ingest_runs`
   reporting.

@@ -12,7 +12,8 @@
     "test": "vitest run",
     "test:watch": "vitest",
     "seed": "tsx src/index.ts seed",
-    "ingest": "tsx src/index.ts ingest"
+    "ingest": "tsx src/index.ts ingest",
+    "eval": "tsx src/index.ts eval"
   },
   "dependencies": {
     "@curate-ai/shared": "workspace:*",
