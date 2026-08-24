@@ -9,7 +9,7 @@ export interface GoldQuery {
   relevantUrls: string[];
 }
 
-export const EVAL_MODES: SearchMode[] = ["hybrid", "bm25", "vector"];
+export const EVAL_MODES: SearchMode[] = ["hybrid", "bm25", "vector", "rerank"];
 
 export interface QueryEval {
   query: string;

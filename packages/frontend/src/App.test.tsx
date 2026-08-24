@@ -26,7 +26,7 @@ const MOCK_SEARCH = {
       publishedAt: "2025-01-01T00:00:00Z",
     },
   ],
-  meta: { tookMs: 3, candidates: 1, from: { bm25: 1, vector: 1 }, mode: "hybrid" },
+  meta: { tookMs: 3, candidates: 1, from: { bm25: 1, vector: 1 }, mode: "hybrid", reranked: false },
 };
 
 function mockFetch(): void {
@@ -70,11 +70,11 @@ describe("App", () => {
     expect(screen.getByText(/rrf 0.016/i)).toBeTruthy();
   });
 
-  it("toggles hybrid mode off", async () => {
+  it("switches retrieval mode", async () => {
     render(<App />);
-    const toggle = screen.getByLabelText(/hybrid/i) as HTMLInputElement;
-    expect(toggle.checked).toBe(true);
-    fireEvent.click(toggle);
-    expect(toggle.checked).toBe(false);
+    const select = screen.getByLabelText(/retrieval mode/i) as HTMLSelectElement;
+    expect(select.value).toBe("hybrid");
+    fireEvent.change(select, { target: { value: "rerank" } });
+    expect(select.value).toBe("rerank");
   });
 });

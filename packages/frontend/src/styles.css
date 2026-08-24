@@ -251,6 +251,13 @@ button.ghost:hover {
   color: var(--muted);
 }
 
+.rerank-reason {
+  margin: 0;
+  font-size: 13px;
+  color: #9fc3ff;
+  font-style: italic;
+}
+
 .empty {
   padding: 30px;
   text-align: center;

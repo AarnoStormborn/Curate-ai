@@ -6,14 +6,14 @@ import { indexDocuments } from "./retrieval/indexer.js";
 import { SEED_DOCUMENTS } from "./seed/corpus.js";
 import { fetchLiveSources } from "./ingestion/manager.js";
 import { toDocumentInput } from "./ingestion/types.js";
-import { countChunks, countDocuments, lastIngestAt, sourceCounts } from "./db/repo.js";
+import { countChunks, countDocuments, getDocumentByUrl, getRecentRuns, lastIngestAt, sourceCounts } from "./db/repo.js";
 import { startServer } from "./server.js";
 import { createSearchService } from "./retrieval/search.js";
-import { getRecentRuns } from "./db/repo.js";
 import { evaluate, EVAL_MODES, formatEvalTable } from "./retrieval/evaluate.js";
-import { getDocumentByUrl } from "./db/repo.js";
 import { GOLD_SET } from "./seed/gold-set.js";
 import type { SearchMode } from "@curate-ai/shared";
+import { createPiReranker } from "./llm/pi-reranker.js";
+import { stageRuntimeFromConfig } from "./llm/runtime.js";
 
 function printJson(value: unknown): void {
   console.log(JSON.stringify(value, null, 2));
@@ -102,7 +102,10 @@ async function main(): Promise<void> {
 
       const db = openDb(config.DATABASE_PATH, config.EMBEDDING_DIM);
       const embedder = createLocalEmbedder(config.EMBEDDING_MODEL, config.EMBEDDING_DIM, config.HF_CACHE);
-      const search = createSearchService(db, embedder);
+      const search = createSearchService(db, embedder, {
+        rerankTopN: config.RERANK_TOP_N,
+        reranker: () => createPiReranker(stageRuntimeFromConfig(config), config.RERANK_TIMEOUT_MS),
+      });
 
       const results = [];
       for (const mode of modes) {

@@ -51,7 +51,7 @@ curl -X POST localhost:4000/api/ingest -H "content-type: application/json" \
 
 | Endpoint | Description |
 |----------|-------------|
-| `GET /api/search?q=&hybrid=&sourceType=&from=&to=&limit=` | Hybrid (or BM25-only) search with score breakdown |
+| `GET /api/search?q=&mode=&sourceType=&from=&to=&limit=` | Hybrid (default), or `mode=bm25` \| `vector` \| `rerank` (LLM rerank of hybrid candidates via the pi SDK) |
 | `GET /api/documents?limit=&offset=` · `GET /api/documents/:id` | List / inspect documents + chunks |
 | `POST /api/documents` · `DELETE /api/documents/:id` | Manual document add / remove |
 | `POST /api/ingest` | Run ingestion: `{mode:"seed"\|"live", sources?:[]}` |
@@ -89,6 +89,10 @@ curl -X POST localhost:4000/api/ingest -H "content-type: application/json" \
 | `HF_CACHE` | `./data/hf-cache` | Model cache (volume-mount in Docker) |
 | `INGEST_SOURCES` | `arxiv,rss,reddit` | Live sources |
 | `ARXIV_MAX_RESULTS` | `30` | Cap per arXiv fetch |
+| `RERANK_PROVIDER` | `google` | LLM reranker provider (pi SDK) |
+| `RERANK_MODEL` | `gemini-3.6-flash` | Rerank model; uses `~/.pi/agent` login, or set `RERANK_API_KEY` |
+| `RERANK_TOP_N` | `25` | Candidate pool handed to the reranker |
+| `RERANK_TIMEOUT_MS` | `60000` | Per-attempt rerank timeout |
 | `FRONTEND_ORIGIN` | `http://localhost:5173` | CORS |
 
 Data sources (feeds, subreddits, arXiv categories) live in [`config/sources.yml`](config/sources.yml).
@@ -153,7 +157,8 @@ A gold set of 27 queries (in `packages/backend/src/seed/gold-set.ts`, referencin
 seed-corpus documents by URL) measures retrieval quality per mode:
 
 ```bash
-pnpm --filter @curate-ai/backend eval           # compare hybrid vs bm25 vs vector
+pnpm --filter @curate-ai/backend eval           # compare hybrid vs bm25 vs vector (add rerank when creds/quota allow)
+pnpm --filter @curate-ai/backend eval --mode=rerank
 ```
 
 Current baseline (real model, seed + live corpus): `recall@10 / MRR / NDCG@10`
@@ -165,14 +170,29 @@ bm25        0.481    0.481    0.481
 vector      1.000    0.957    0.968
 ```
 
+### LLM reranking (`mode=rerank`)
+
+Two-stage retrieval via the **pi SDK**: hybrid fusion produces a candidate pool
+(`RERANK_TOP_N`, default 25), then a pi agent session re-ranks it with a
+terminating structured tool (`rerank_candidates`), returning per-doc relevance +
+reason. Falls back to hybrid order gracefully if the LLM is unavailable
+(`meta.reranked=false` + a warning); model answers in plain text are parsed as a
+last resort. Auth: your `~/.pi/agent` login, or `RERANK_API_KEY` (cron/containers).
+
+> Note: on Google's free tier (20 requests/day/model), a full 27-query eval
+> exceeds the daily quota — set `RERANK_API_KEY` with a paid key or use another
+> provider for uninterrupted eval runs. The reranker is verified end-to-end
+> (structured verdicts for real queries); its eval row lands in the table once
+> quota permits.
+
 Add queries for your own corpus by URL; every retrieval change can now be
 proven or rejected against this baseline.
 
 ## Roadmap (retrieval techniques to add)
 
 - ✅ **Evaluation harness** — gold set + recall@k / MRR / NDCG, mode comparison (`pnpm eval`)
-- Query expansion & multi-query retrieval
-- Reranking (cross-encoder / LLM judge) over fused candidates — measure vs baseline
+- ✅ **LLM reranking** (pi SDK) — `mode=rerank`: hybrid candidates → pi agent session structured rerank; graceful fallback; blogged in README
+- Query expansion & multi-query retrieval — measure vs the eval baseline
 - Hybrid BM25+vector at the **chunk** level with doc-level aggregation
 - Semantic cache for repeated queries
 - Vector-filter pushdown in sqlite-vec (`+metadata` columns)

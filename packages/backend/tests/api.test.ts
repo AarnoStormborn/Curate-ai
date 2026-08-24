@@ -3,6 +3,7 @@ import { createTestDb, MockEmbedder } from "./helpers.js";
 import { buildApp } from "../src/app.js";
 import { createSearchService } from "../src/retrieval/search.js";
 import { createIngestService } from "../src/services/ingest.js";
+import { createMockReranker } from "../src/llm/rerank.js";
 import type { Config } from "../src/config.js";
 
 function testConfig(): Config {
@@ -20,14 +21,22 @@ function testConfig(): Config {
     LOG_LEVEL: "silent",
     SOURCES_CONFIG: undefined,
     AUTO_SEED: "false",
+    RERANK_PROVIDER: "google",
+    RERANK_MODEL: "gemini-3.6-flash",
+    RERANK_API_KEY: "",
+    RERANK_TOP_N: 25,
+    RERANK_TIMEOUT_MS: 60_000,
   };
 }
 
-async function buildTestApp() {
+async function buildTestApp(withReranker = false) {
   const db = createTestDb();
   const embedder = new MockEmbedder();
-  const search = createSearchService(db, embedder);
-  const ingest = createIngestService(db, embedder);
+  const search = createSearchService(db, embedder, {
+    rerankTopN: 10,
+    ...(withReranker ? { reranker: () => createMockReranker() } : {}),
+  });
+  const ingest = createIngestService(db, embedder, testConfig());
   const app = buildApp({ db, embedder, search, ingest, config: testConfig(), logger: false });
   await app.ready();
   return { app, db, embedder };
@@ -112,6 +121,34 @@ describe("API", () => {
 
     const stats = await app.inject({ method: "GET", url: "/api/stats" });
     expect(stats.json().documents).toBe(body.indexed.indexed);
+    await app.close();
+  });
+
+  it("GET /api/search?mode=rerank reranks when a reranker is configured", async () => {
+    const { app } = await buildTestApp(true);
+    const seed = await app.inject({ method: "POST", url: "/api/ingest", payload: { mode: "seed" } });
+    expect(seed.statusCode).toBe(202);
+
+    const res = await app.inject({ method: "GET", url: "/api/search?q=hybrid%20fusion&mode=rerank&limit=3" });
+    expect(res.statusCode).toBe(200);
+    const body = res.json();
+    expect(body.meta.mode).toBe("rerank");
+    expect(body.meta.reranked).toBe(true);
+    expect(body.results[0]?.rerankReason).toBeDefined();
+    await app.close();
+  });
+
+  it("GET /api/search?mode=rerank falls back safely without a reranker", async () => {
+    const { app } = await buildTestApp();
+    const seed = await app.inject({ method: "POST", url: "/api/ingest", payload: { mode: "seed" } });
+    expect(seed.statusCode).toBe(202);
+
+    const res = await app.inject({ method: "GET", url: "/api/search?q=hybrid%20fusion&mode=rerank&limit=3" });
+    expect(res.statusCode).toBe(200);
+    const body = res.json();
+    expect(body.meta.mode).toBe("rerank");
+    expect(body.meta.reranked).toBe(false);
+    expect(body.results.length).toBeGreaterThan(0);
     await app.close();
   });
 

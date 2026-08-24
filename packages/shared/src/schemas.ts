@@ -42,7 +42,7 @@ export type Chunk = z.infer<typeof Chunk>;
 // ============================================================================
 
 /** Retrieval mode — used by the eval harness to compare techniques. */
-export const SearchMode = z.enum(["hybrid", "bm25", "vector"]);
+export const SearchMode = z.enum(["hybrid", "bm25", "vector", "rerank"]);
 export type SearchMode = z.infer<typeof SearchMode>;
 
 export const SearchRequest = z.object({
@@ -82,6 +82,8 @@ export const SearchResult = z.object({
   score: ScoreBreakdown,
   tags: z.array(z.string()).default([]),
   publishedAt: z.string().nullable().optional(),
+  /** LLM reranker justification, when mode=rerank. */
+  rerankReason: z.string().optional(),
 });
 export type SearchResult = z.infer<typeof SearchResult>;
 
@@ -93,6 +95,9 @@ export const SearchResponse = z.object({
     candidates: z.number(),
     from: z.object({ bm25: z.number(), vector: z.number() }),
     mode: SearchMode,
+    /** true when an LLM reranker actually ran (false = soft fallback to hybrid). */
+    reranked: z.boolean(),
+    rerankModel: z.string().optional(),
   }),
 });
 export type SearchResponse = z.infer<typeof SearchResponse>;

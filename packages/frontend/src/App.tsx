@@ -3,6 +3,13 @@ import type { SearchResponse, Stats } from "@curate-ai/shared";
 import { fetchStats, search, triggerIngest } from "./api.js";
 import { ResultCard } from "./components/ResultCard.js";
 
+const MODE_OPTIONS = [
+  { value: "hybrid", label: "hybrid (bm25 + vector)" },
+  { value: "bm25", label: "bm25 only" },
+  { value: "vector", label: "vector only" },
+  { value: "rerank", label: "hybrid + LLM rerank" },
+];
+
 const SOURCE_OPTIONS = [
   { value: "", label: "All sources" },
   { value: "arxiv", label: "arXiv" },
@@ -13,7 +20,7 @@ const SOURCE_OPTIONS = [
 
 export default function App() {
   const [query, setQuery] = useState("");
-  const [hybrid, setHybrid] = useState(true);
+  const [mode, setMode] = useState("hybrid");
   const [sourceType, setSourceType] = useState("");
   const [result, setResult] = useState<SearchResponse | null>(null);
   const [stats, setStats] = useState<Stats | null>(null);
@@ -37,7 +44,7 @@ export default function App() {
     setLoading(true);
     setError(null);
     try {
-      const res = await search(q, { hybrid, sourceType });
+      const res = await search(q, { hybrid: mode === "hybrid" || mode === "rerank", mode, sourceType });
       setResult(res);
     } catch (err) {
       setError(err instanceof Error ? err.message : String(err));
@@ -85,10 +92,13 @@ export default function App() {
       </form>
 
       <div className="controls">
-        <label className="toggle">
-          <input type="checkbox" checked={hybrid} onChange={(e) => setHybrid(e.target.checked)} />
-          hybrid (BM25 + vector)
-        </label>
+        <select value={mode} onChange={(e) => setMode(e.target.value)} aria-label="Retrieval mode">
+          {MODE_OPTIONS.map((m) => (
+            <option key={m.value} value={m.value}>
+              {m.label}
+            </option>
+          ))}
+        </select>
         <select
           value={sourceType}
           onChange={(e) => setSourceType(e.target.value)}
@@ -117,6 +127,11 @@ export default function App() {
           <div className="results-meta">
             <span>
               {result.results.length} results for <em>“{result.query}”</em>
+              {result.meta.mode === "rerank" && (
+                <span className={`badge ${result.meta.reranked ? "badge-rrf" : "badge-seed"}`}>
+                  {result.meta.reranked ? `reranked ${result.meta.rerankModel ?? ""}` : "rerank fallback"}
+                </span>
+              )}
             </span>
             <span className="meta-right">
               {result.meta.tookMs} ms · {result.meta.candidates} candidates ·{" "}

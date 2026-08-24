@@ -134,14 +134,20 @@ in `src/seed/gold-set.ts`, `curate-ai eval` CLI with mode comparison and missed-
 reporting. Baseline measured on the real model: **hybrid** recall@10 1.000 / MRR 0.975 /
 NDCG 0.982 · **vector** 1.000 / 0.957 / 0.968 · **bm25** 0.481 / 0.481 / 0.481.
 
+**Done (pi SDK LLM reranking):** `src/llm/pi-reranker.ts` — `mode=rerank` runs a pi
+agent session over the hybrid candidate pool with a terminating structured tool,
+per-verdict relevance + reason, text-answer parsing last resort, attempt retries,
+and graceful hybrid fallback (`meta.reranked=false`). Auth: `~/.pi/agent` login or
+`RERANK_API_KEY` (docker-compose passthrough + .env.example included). Verified
+end-to-end with Google Gemini (3.6-flash) — structured verdicts for real queries.
+Free-tier quota (20 req/day/model) currently gates a full 27-query rerank eval row.
+
 **Next phases:**
 
 - **Phase 3 — retrieval depth**: query expansion, chunk-level hybrid with doc
   aggregation, vector metadata-filter pushdown, semantic cache — each measured
   against the eval baseline above.
-- **Phase 2 — pi SDK LLM integration**: `stageSession()` per stage via
-  `createAgentSession` + `defineTool` structured-output tools (score_topics,
-  generate_angle, rerank). Replaces the legacy placeholder agents with real LLM stages
-  and adds LLM reranking to search (measure vs the eval baseline).
+- **Phase 2 remainder — curation agents**: `stageSession()` insight/angle generation
+  (same pi SDK infra as the reranker) for the curated-brief side.
 - **Phase 4 — scheduling**: in-container cron or ofelia-free host cron + `ingest_runs`
   reporting.

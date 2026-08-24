@@ -38,6 +38,9 @@ export function ResultCard({ result }: { result: SearchResult }) {
       </div>
 
       {result.snippet && <p className="snippet">{result.snippet}</p>}
+      {result.rerankReason && (
+        <p className="rerank-reason">🤖 {result.rerankReason}</p>
+      )}
 
       <div className="card-foot">
         <span className="source">{result.source}</span>

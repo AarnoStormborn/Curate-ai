@@ -5,6 +5,7 @@ const BASE = (import.meta.env.VITE_API_BASE as string | undefined) ?? "/api";
 
 export interface SearchOptions {
   hybrid: boolean;
+  mode?: string;
   sourceType?: string;
   limit?: number;
 }
@@ -15,6 +16,7 @@ export async function search(q: string, opts: SearchOptions): Promise<SearchResp
     hybrid: String(opts.hybrid),
     limit: String(opts.limit ?? 10),
   });
+  if (opts.mode) params.set("mode", opts.mode);
   if (opts.sourceType) params.set("sourceType", opts.sourceType);
 
   const res = await fetch(`${BASE}/search?${params}`);
