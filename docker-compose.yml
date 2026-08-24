@@ -15,8 +15,8 @@ services:
       HOST: 0.0.0.0
       LOG_LEVEL: ${LOG_LEVEL:-info}
       # LLM reranking (pi SDK): pass a key for containers; local dev uses ~/.pi/agent login
-      RERANK_PROVIDER: ${RERANK_PROVIDER:-google}
-      RERANK_MODEL: ${RERANK_MODEL:-gemini-3.6-flash}
+      RERANK_PROVIDER: ${RERANK_PROVIDER:-opencode-go}
+      RERANK_MODEL: ${RERANK_MODEL:-deepseek-v4-flash}
       RERANK_API_KEY: ${RERANK_API_KEY:-}
       RERANK_TOP_N: ${RERANK_TOP_N:-25}
       # Optionally override the local embedding model / dimension:

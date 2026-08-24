@@ -20,8 +20,8 @@ const EnvSchema = z.object({
   AUTO_SEED: z.enum(["true", "false"]).default("true"),
 
   // LLM reranking (pi SDK agent stage).
-  RERANK_PROVIDER: z.string().default("google"),
-  RERANK_MODEL: z.string().default("gemini-3.6-flash"),
+  RERANK_PROVIDER: z.string().default("opencode-go"),
+  RERANK_MODEL: z.string().default("deepseek-v4-flash"),
   RERANK_API_KEY: z.string().default(""),
   /** Candidate pool handed to the reranker (final results = limit of it). */
   RERANK_TOP_N: z.coerce.number().int().min(1).max(100).default(25),

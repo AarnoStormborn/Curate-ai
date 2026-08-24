@@ -89,8 +89,8 @@ curl -X POST localhost:4000/api/ingest -H "content-type: application/json" \
 | `HF_CACHE` | `./data/hf-cache` | Model cache (volume-mount in Docker) |
 | `INGEST_SOURCES` | `arxiv,rss,reddit` | Live sources |
 | `ARXIV_MAX_RESULTS` | `30` | Cap per arXiv fetch |
-| `RERANK_PROVIDER` | `google` | LLM reranker provider (pi SDK) |
-| `RERANK_MODEL` | `gemini-3.6-flash` | Rerank model; uses `~/.pi/agent` login, or set `RERANK_API_KEY` |
+| `RERANK_PROVIDER` | `opencode-go` | LLM reranker provider (pi SDK) |
+| `RERANK_MODEL` | `deepseek-v4-flash` | Rerank model; uses `~/.pi/agent` login, or set `RERANK_API_KEY` |
 | `RERANK_TOP_N` | `25` | Candidate pool handed to the reranker |
 | `RERANK_TIMEOUT_MS` | `60000` | Per-attempt rerank timeout |
 | `FRONTEND_ORIGIN` | `http://localhost:5173` | CORS |
@@ -168,7 +168,11 @@ mode     recall@k  mrr      ndcg@k
 hybrid      1.000    0.975    0.982
 bm25        0.481    0.481    0.481
 vector      1.000    0.957    0.968
+rerank      1.000    1.000    0.997   ← hybrid + LLM rerank (pi SDK)
 ```
+
+Reranking is the winning stage: perfect recall, and it lifts MRR 0.975 → **1.000**
+and NDCG 0.982 → **0.997** (every gold query's most relevant doc ranks first).
 
 ### LLM reranking (`mode=rerank`)
 
@@ -177,13 +181,9 @@ Two-stage retrieval via the **pi SDK**: hybrid fusion produces a candidate pool
 terminating structured tool (`rerank_candidates`), returning per-doc relevance +
 reason. Falls back to hybrid order gracefully if the LLM is unavailable
 (`meta.reranked=false` + a warning); model answers in plain text are parsed as a
-last resort. Auth: your `~/.pi/agent` login, or `RERANK_API_KEY` (cron/containers).
-
-> Note: on Google's free tier (20 requests/day/model), a full 27-query eval
-> exceeds the daily quota — set `RERANK_API_KEY` with a paid key or use another
-> provider for uninterrupted eval runs. The reranker is verified end-to-end
-> (structured verdicts for real queries); its eval row lands in the table once
-> quota permits.
+last resort. Auth: your `~/.pi/agent` login (works with subscriptions like
+CommandCode/opencode-go, or Gemini/Anthropic keys), or `RERANK_API_KEY`
+(cron/containers).
 
 Add queries for your own corpus by URL; every retrieval change can now be
 proven or rejected against this baseline.

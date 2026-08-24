@@ -138,9 +138,19 @@ NDCG 0.982 · **vector** 1.000 / 0.957 / 0.968 · **bm25** 0.481 / 0.481 / 0.481
 agent session over the hybrid candidate pool with a terminating structured tool,
 per-verdict relevance + reason, text-answer parsing last resort, attempt retries,
 and graceful hybrid fallback (`meta.reranked=false`). Auth: `~/.pi/agent` login or
-`RERANK_API_KEY` (docker-compose passthrough + .env.example included). Verified
-end-to-end with Google Gemini (3.6-flash) — structured verdicts for real queries.
-Free-tier quota (20 req/day/model) currently gates a full 27-query rerank eval row.
+`RERANK_API_KEY` (docker-compose passthrough + .env.example included).
+
+Baseline (all four modes, real model — opencode-go/deepseek-v4-flash reranker):
+
+```
+mode     recall@k  mrr      ndcg@k
+hybrid      1.000    0.975    0.982
+bm25        0.481    0.481    0.481
+vector      1.000    0.957    0.968
+rerank      1.000    1.000    0.997
+```
+
+Reranking is the winning stage: MRR 0.975 → 1.000, NDCG 0.982 → 0.997.
 
 **Next phases:**
 
