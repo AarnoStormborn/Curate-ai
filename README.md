@@ -93,6 +93,8 @@ curl -X POST localhost:4000/api/ingest -H "content-type: application/json" \
 | `RERANK_MODEL` | `deepseek-v4-flash` | Rerank model; uses `~/.pi/agent` login, or set `RERANK_API_KEY` |
 | `RERANK_TOP_N` | `25` | Candidate pool handed to the reranker |
 | `RERANK_TIMEOUT_MS` | `60000` | Per-attempt rerank timeout |
+| `EXPANSIONS_PER_QUERY` | `3` | LLM query expansions per query (expand modes) |
+| `EXPAND_TIMEOUT_MS` | `45000` | Per-attempt expansion timeout |
 | `FRONTEND_ORIGIN` | `http://localhost:5173` | CORS |
 
 Data sources (feeds, subreddits, arXiv categories) live in [`config/sources.yml`](config/sources.yml).
@@ -164,15 +166,19 @@ pnpm --filter @curate-ai/backend eval --mode=rerank
 Current baseline (real model, seed + live corpus): `recall@10 / MRR / NDCG@10`
 
 ```
-mode     recall@k  mrr      ndcg@k
-hybrid      1.000    0.975    0.982
-bm25        0.481    0.481    0.481
-vector      1.000    0.957    0.968
-rerank      1.000    1.000    0.997   ← hybrid + LLM rerank (pi SDK)
+mode           recall@k  mrr      ndcg@k
+hybrid          1.000    0.975    0.982
+bm25            0.481    0.481    0.481
+vector          1.000    0.957    0.968
+rerank          1.000    1.000    0.994   ← hybrid + LLM rerank
+expand          1.000    0.981    0.983   ← hybrid + LLM query expansion
+expand-rerank   1.000    1.000    0.997   ← expansion + rerank (best)
 ```
 
-Reranking is the winning stage: perfect recall, and it lifts MRR 0.975 → **1.000**
-and NDCG 0.982 → **0.997** (every gold query's most relevant doc ranks first).
+Reranking (with or without expansion) is the winning stage: **MRR 1.000**, and
+`expand-rerank` reaches **NDCG 0.997**. Expansion alone modestly improves ranking
+(0.975 → 0.981 MRR) and diversifies recall; the reranker contributes the precise
+ordering. Query expansion also guards against low-recall paraphrasings.
 
 ### LLM reranking (`mode=rerank`)
 
@@ -192,9 +198,9 @@ proven or rejected against this baseline.
 
 - ✅ **Evaluation harness** — gold set + recall@k / MRR / NDCG, mode comparison (`pnpm eval`)
 - ✅ **LLM reranking** (pi SDK) — `mode=rerank`: hybrid candidates → pi agent session structured rerank; graceful fallback; blogged in README
-- Query expansion & multi-query retrieval — measure vs the eval baseline
-- Hybrid BM25+vector at the **chunk** level with doc-level aggregation
+- ✅ **LLM query expansion** — `mode=expand` / `mode=expand-rerank`: pi agent session rewrites the query into variants, multi-query retrieval fused with RRF
 - Semantic cache for repeated queries
+- Hybrid BM25+vector at the **chunk** level with doc-level aggregation
 - Vector-filter pushdown in sqlite-vec (`+metadata` columns)
 - Eval dashboards in the UI
 

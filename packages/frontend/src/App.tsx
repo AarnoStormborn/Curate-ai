@@ -8,6 +8,8 @@ const MODE_OPTIONS = [
   { value: "bm25", label: "bm25 only" },
   { value: "vector", label: "vector only" },
   { value: "rerank", label: "hybrid + LLM rerank" },
+  { value: "expand", label: "hybrid + query expansion" },
+  { value: "expand-rerank", label: "expand + rerank" },
 ];
 
 const SOURCE_OPTIONS = [
@@ -44,7 +46,7 @@ export default function App() {
     setLoading(true);
     setError(null);
     try {
-      const res = await search(q, { hybrid: mode === "hybrid" || mode === "rerank", mode, sourceType });
+      const res = await search(q, { hybrid: mode !== "bm25", mode, sourceType });
       setResult(res);
     } catch (err) {
       setError(err instanceof Error ? err.message : String(err));
@@ -130,6 +132,11 @@ export default function App() {
               {result.meta.mode === "rerank" && (
                 <span className={`badge ${result.meta.reranked ? "badge-rrf" : "badge-seed"}`}>
                   {result.meta.reranked ? `reranked ${result.meta.rerankModel ?? ""}` : "rerank fallback"}
+                </span>
+              )}
+              {result.meta.expanded && (
+                <span className="badge badge-expand">
+                  expanded ×{result.meta.expansions?.length ?? 2}
                 </span>
               )}
             </span>

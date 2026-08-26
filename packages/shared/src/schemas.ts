@@ -27,7 +27,6 @@ export type Document = z.infer<typeof Document>;
 /** Payload used to create a document (id/createdAt are generated server-side). */
 export const DocumentInput = Document.omit({ id: true, createdAt: true });
 export type DocumentInput = z.infer<typeof DocumentInput>;
-
 /** A chunk of a document that carries its own embedding. */
 export const Chunk = z.object({
   id: z.number(),
@@ -42,7 +41,14 @@ export type Chunk = z.infer<typeof Chunk>;
 // ============================================================================
 
 /** Retrieval mode — used by the eval harness to compare techniques. */
-export const SearchMode = z.enum(["hybrid", "bm25", "vector", "rerank"]);
+export const SearchMode = z.enum([
+  "hybrid",
+  "bm25",
+  "vector",
+  "rerank",
+  "expand",
+  "expand-rerank",
+]);
 export type SearchMode = z.infer<typeof SearchMode>;
 
 export const SearchRequest = z.object({
@@ -98,6 +104,10 @@ export const SearchResponse = z.object({
     /** true when an LLM reranker actually ran (false = soft fallback to hybrid). */
     reranked: z.boolean(),
     rerankModel: z.string().optional(),
+    /** true when query expansion ran (false = soft fallback to single query). */
+    expanded: z.boolean(),
+    /** Query variants used when expanded. */
+    expansions: z.array(z.string()).optional(),
   }),
 });
 export type SearchResponse = z.infer<typeof SearchResponse>;

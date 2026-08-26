@@ -258,6 +258,11 @@ button.ghost:hover {
   font-style: italic;
 }
 
+.badge-expand {
+  background: rgba(167, 139, 250, 0.16);
+  color: #c4b5fd;
+}
+
 .empty {
   padding: 30px;
   text-align: center;

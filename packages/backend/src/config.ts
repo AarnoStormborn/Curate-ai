@@ -26,6 +26,11 @@ const EnvSchema = z.object({
   /** Candidate pool handed to the reranker (final results = limit of it). */
   RERANK_TOP_N: z.coerce.number().int().min(1).max(100).default(25),
   RERANK_TIMEOUT_MS: z.coerce.number().int().min(1000).default(60_000),
+
+  // LLM query expansion (pi SDK agent stage). Same provider defaults as rerank.
+  EXPAND_API_KEY: z.string().default(""),
+  EXPANSIONS_PER_QUERY: z.coerce.number().int().min(1).max(6).default(3),
+  EXPAND_TIMEOUT_MS: z.coerce.number().int().min(1000).default(45_000),
 });
 
 export type Config = z.infer<typeof EnvSchema>;

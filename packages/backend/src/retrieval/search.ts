@@ -1,6 +1,7 @@
 import type Database from "better-sqlite3";
 import type { SearchRequest, SearchResponse, SearchResult, ScoreBreakdown, SearchMode } from "@curate-ai/shared";
 import type { Embedder } from "../embeddings/types.js";
+import type { QueryExpander } from "../llm/expand.js";
 import type { Reranker } from "../llm/rerank.js";
 import { bm25Search } from "./bm25.js";
 import { vectorSearch } from "./vector.js";
@@ -28,6 +29,10 @@ export interface SearchServiceOptions {
   reranker?: () => Reranker;
   /** Candidate pool size handed to the reranker (default 25). */
   rerankTopN?: number;
+  /** Lazy LLM query expander (pi SDK stage). Invoked only for expand modes. */
+  expander?: () => QueryExpander;
+  /** Extra expansions produced per query (default 3). */
+  expansionsPerQuery?: number;
 }
 
 export function createSearchService(
@@ -36,7 +41,9 @@ export function createSearchService(
   options: SearchServiceOptions = {},
 ): SearchService {
   const rerankTopN = options.rerankTopN ?? 25;
+  const expansionsPerQuery = options.expansionsPerQuery ?? 3;
   let warnedRerankFallback = false;
+  let warnedExpandFallback = false;
   const docById = new Map<string, Record<string, unknown>>();
   const loadDocs = (ids: string[]): void => {
     const fresh = ids.filter((id) => !docById.has(id));
@@ -93,40 +100,86 @@ export function createSearchService(
       const mode: SearchMode = req.mode ?? (req.hybrid === false ? "bm25" : "hybrid");
       const limit = req.limit ?? 10;
       const includeSnippet = req.includeSnippet ?? true;
-      // Rerank needs a bigger candidate pool than the final answer.
-      const poolSize = mode === "rerank" ? Math.max(limit, Math.min(rerankTopN, 100)) : limit;
+      const isExpand = mode === "expand" || mode === "expand-rerank";
+      const isRerank = mode === "rerank" || mode === "expand-rerank";
+      // Rerank + expand need a bigger candidate pool than the final answer.
+      const poolSize = isRerank ? Math.max(limit, Math.min(rerankTopN, 100)) : limit;
 
-      // 1. Run the requested retrieval technique(s) in parallel.
-      const [bm25Hits, queryEmbedding] = await Promise.all([
-        mode !== "vector"
-          ? Promise.resolve(bm25Search(db, req.q, poolSize * 4))
-          : Promise.resolve([] as Awaited<ReturnType<typeof bm25Search>>),
-        mode !== "bm25" ? embedder.embed([req.q]).then((rows) => rows[0]) : Promise.resolve(undefined),
-      ]);
-      const vecHits = mode !== "bm25" && queryEmbedding ? vectorSearch(db, queryEmbedding, poolSize * 4) : [];
-
-      // 2. Roll vector chunk hits up to documents (best distance per doc).
-      const bestVec = new Map<string, { distance: number; chunkId: number }>();
-      for (const hit of vecHits) {
-        const prev = bestVec.get(hit.documentId);
-        if (!prev || hit.distance < prev.distance) {
-          bestVec.set(hit.documentId, { distance: hit.distance, chunkId: hit.chunkId });
+      // 0. Optional: LLM query expansion → one or more queries to run.
+      let expanded = false;
+      let expansions: string[] = [req.q];
+      if (isExpand) {
+        try {
+          const getExpander = options.expander;
+          if (!getExpander) throw new Error("expander not configured");
+          const got = await getExpander().expand(req.q);
+          const capped = got.slice(0, expansionsPerQuery + 1);
+          if (capped.length > 1) {
+            expansions = capped;
+            expanded = true;
+          }
+        } catch (err) {
+          if (!warnedExpandFallback) {
+            warnedExpandFallback = true;
+            console.warn(`[expand] failed, using single query: ${err instanceof Error ? err.message : err}`);
+          }
         }
       }
-      const vecRanked = [...bestVec.entries()]
-        .sort((a, b) => a[1].distance - b[1].distance)
-        .map(([id]) => ({ id }));
 
-      // 3. Fuse ranked lists with RRF (single-list fusion = rank-only ordering).
-      const lists: Array<Array<{ id: string }>> = [];
-      if (mode !== "vector") lists.push(bm25Hits.map((h) => ({ id: h.documentId })));
-      if (mode !== "bm25") lists.push(vecRanked);
-      const fused = rrfFuse(lists);
+      // 1. Run retrieval across all query variants; collect per-variant ranked lists.
+      const perVariant = await Promise.all(
+        expansions.map(async (q) => {
+          const [bm25Hits, queryEmbedding] = await Promise.all([
+            mode !== "vector"
+              ? Promise.resolve(bm25Search(db, q, poolSize * 4))
+              : Promise.resolve([] as Awaited<ReturnType<typeof bm25Search>>),
+            mode !== "bm25" ? embedder.embed([q]).then((rows) => rows[0]) : Promise.resolve(undefined),
+          ]);
+          const vecHits = mode !== "bm25" && queryEmbedding ? vectorSearch(db, queryEmbedding, poolSize * 4) : [];
+          return { q, bm25Hits, vecHits };
+        }),
+      );
 
-      const bm25Scores = new Map(bm25Hits.map((h) => [h.documentId, h.score] as const));
-      const bm25Content = new Map(bm25Hits.map((h) => [h.documentId, h.content] as const));
+      // Roll vector hits up to docs (best per doc) across all variants.
+      const bestVec = new Map<string, { distance: number; chunkId: number }>();
+      const bm25Scores = new Map<string, number>();
+      const bm25Content = new Map<string, string>();
+      const fused = new Map<string, number>();
+      let totalBm25 = 0;
+      let totalVec = 0;
 
-      const candidates: Candidate[] = [...fused.entries()]
+      for (const { bm25Hits, vecHits } of perVariant) {
+        totalBm25 += bm25Hits.length;
+        totalVec += vecHits.length;
+        for (const h of bm25Hits) {
+          const prev = bm25Scores.get(h.documentId);
+          if (prev === undefined || h.score > prev) {
+            bm25Scores.set(h.documentId, h.score);
+            bm25Content.set(h.documentId, h.content);
+          }
+        }
+        for (const hit of vecHits) {
+          const prev = bestVec.get(hit.documentId);
+          if (!prev || hit.distance < prev.distance) {
+            bestVec.set(hit.documentId, { distance: hit.distance, chunkId: hit.chunkId });
+          }
+        }
+      }
+
+      // Fuse across variants: concatenate each variant's bm25+vector list.
+      const fusedLists: Array<Array<{ id: string }>> = [];
+      for (const { bm25Hits, vecHits } of perVariant) {
+        if (mode !== "vector") fusedLists.push(bm25Hits.map((h) => ({ id: h.documentId })));
+        if (mode !== "bm25") {
+          const vRanked = [...bestVec.entries()]
+            .sort((a, b) => a[1].distance - b[1].distance)
+            .map(([id]) => ({ id }));
+          fusedLists.push(vRanked);
+        }
+      }
+      const combined = rrfFuse(fusedLists);
+
+      const candidates: Candidate[] = [...combined.entries()]
         .sort((a, b) => b[1] - a[1])
         .map(([documentId, rrf]) => {
           const vec = bestVec.get(documentId);
@@ -158,11 +211,11 @@ export function createSearchService(
       });
       const pool = filtered.slice(0, poolSize);
 
-      // 5. Optional: LLM re-rank the pool.
+      // 5. Optional: LLM re-rank the pool (rerank & expand-rerank).
       let reranked = false;
       let rerankModel: string | undefined;
       let finalOrder: Candidate[] = pool;
-      if (mode === "rerank" && pool.length > 0) {
+      if (isRerank && pool.length > 0) {
         try {
           const getReranker = options.reranker;
           if (!getReranker) throw new Error("reranker not configured");
@@ -218,10 +271,12 @@ export function createSearchService(
         meta: {
           tookMs: Math.round(performance.now() - t0),
           candidates: filtered.length,
-          from: { bm25: bm25Hits.length, vector: vecHits.length },
+          from: { bm25: totalBm25, vector: totalVec },
           mode,
           reranked,
           ...(rerankModel ? { rerankModel } : {}),
+          expanded,
+          ...(expanded ? { expansions } : {}),
         },
       };
     },

@@ -4,6 +4,7 @@ import { buildApp } from "../src/app.js";
 import { createSearchService } from "../src/retrieval/search.js";
 import { createIngestService } from "../src/services/ingest.js";
 import { createMockReranker } from "../src/llm/rerank.js";
+import { createMockExpander } from "../src/llm/expand.js";
 import type { Config } from "../src/config.js";
 
 function testConfig(): Config {
@@ -26,15 +27,21 @@ function testConfig(): Config {
     RERANK_API_KEY: "",
     RERANK_TOP_N: 25,
     RERANK_TIMEOUT_MS: 60_000,
+    EXPAND_API_KEY: "",
+    EXPANSIONS_PER_QUERY: 3,
+    EXPAND_TIMEOUT_MS: 45_000,
   };
 }
 
-async function buildTestApp(withReranker = false) {
+async function buildTestApp(withStages = false) {
   const db = createTestDb();
   const embedder = new MockEmbedder();
   const search = createSearchService(db, embedder, {
     rerankTopN: 10,
-    ...(withReranker ? { reranker: () => createMockReranker() } : {}),
+    expansionsPerQuery: 3,
+    ...(withStages
+      ? { reranker: () => createMockReranker(), expander: () => createMockExpander() }
+      : {}),
   });
   const ingest = createIngestService(db, embedder, testConfig());
   const app = buildApp({ db, embedder, search, ingest, config: testConfig(), logger: false });
@@ -149,6 +156,35 @@ describe("API", () => {
     expect(body.meta.mode).toBe("rerank");
     expect(body.meta.reranked).toBe(false);
     expect(body.results.length).toBeGreaterThan(0);
+    await app.close();
+  });
+
+  it("GET /api/search?mode=expand expands when an expander is configured", async () => {
+    const { app } = await buildTestApp(true);
+    const seed = await app.inject({ method: "POST", url: "/api/ingest", payload: { mode: "seed" } });
+    expect(seed.statusCode).toBe(202);
+
+    const res = await app.inject({ method: "GET", url: "/api/search?q=hybrid%20fusion&mode=expand&limit=3" });
+    expect(res.statusCode).toBe(200);
+    const body = res.json();
+    expect(body.meta.mode).toBe("expand");
+    expect(body.meta.expanded).toBe(true);
+    expect(body.meta.expansions!.length).toBeGreaterThan(1);
+    await app.close();
+  });
+
+  it("GET /api/search?mode=expand-rerank runs both stages", async () => {
+    const { app } = await buildTestApp(true);
+    const seed = await app.inject({ method: "POST", url: "/api/ingest", payload: { mode: "seed" } });
+    expect(seed.statusCode).toBe(202);
+
+    const res = await app.inject({ method: "GET", url: "/api/search?q=hybrid%20fusion&mode=expand-rerank&limit=3" });
+    expect(res.statusCode).toBe(200);
+    const body = res.json();
+    expect(body.meta.mode).toBe("expand-rerank");
+    expect(body.meta.expanded).toBe(true);
+    expect(body.meta.reranked).toBe(true);
+    expect(body.results[0]?.rerankReason).toBeDefined();
     await app.close();
   });
 

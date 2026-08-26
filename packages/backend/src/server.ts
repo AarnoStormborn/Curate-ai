@@ -6,6 +6,7 @@ import { createIngestService } from "./services/ingest.js";
 import { countDocuments } from "./db/repo.js";
 import { buildApp } from "./app.js";
 import { createPiReranker } from "./llm/pi-reranker.js";
+import { createPiExpander } from "./llm/pi-expander.js";
 import { stageRuntimeFromConfig } from "./llm/runtime.js";
 
 /** Boot everything: DB → embedder → services → Fastify. */
@@ -14,8 +15,11 @@ export async function startServer(config: Config): Promise<{ close: () => Promis
   const embedder = createLocalEmbedder(config.EMBEDDING_MODEL, config.EMBEDDING_DIM, config.HF_CACHE);
   const search = createSearchService(db, embedder, {
     rerankTopN: config.RERANK_TOP_N,
+    expansionsPerQuery: config.EXPANSIONS_PER_QUERY,
     // Lazy: the ModelRuntime (pi login / API key) is only touched for mode=rerank.
     reranker: () => createPiReranker(stageRuntimeFromConfig(config), config.RERANK_TIMEOUT_MS),
+    // Lazy: only touched for expand / expand-rerank modes.
+    expander: () => createPiExpander(stageRuntimeFromConfig(config), config.EXPAND_TIMEOUT_MS),
   });
   const ingest = createIngestService(db, embedder, config);
 

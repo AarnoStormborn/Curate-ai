@@ -13,6 +13,7 @@ import { evaluate, EVAL_MODES, formatEvalTable } from "./retrieval/evaluate.js";
 import { GOLD_SET } from "./seed/gold-set.js";
 import type { SearchMode } from "@curate-ai/shared";
 import { createPiReranker } from "./llm/pi-reranker.js";
+import { createPiExpander } from "./llm/pi-expander.js";
 import { stageRuntimeFromConfig } from "./llm/runtime.js";
 
 function printJson(value: unknown): void {
@@ -104,7 +105,9 @@ async function main(): Promise<void> {
       const embedder = createLocalEmbedder(config.EMBEDDING_MODEL, config.EMBEDDING_DIM, config.HF_CACHE);
       const search = createSearchService(db, embedder, {
         rerankTopN: config.RERANK_TOP_N,
+        expansionsPerQuery: config.EXPANSIONS_PER_QUERY,
         reranker: () => createPiReranker(stageRuntimeFromConfig(config), config.RERANK_TIMEOUT_MS),
+        expander: () => createPiExpander(stageRuntimeFromConfig(config), config.EXPAND_TIMEOUT_MS),
       });
 
       const results = [];

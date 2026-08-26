@@ -134,30 +134,30 @@ in `src/seed/gold-set.ts`, `curate-ai eval` CLI with mode comparison and missed-
 reporting. Baseline measured on the real model: **hybrid** recall@10 1.000 / MRR 0.975 /
 NDCG 0.982 · **vector** 1.000 / 0.957 / 0.968 · **bm25** 0.481 / 0.481 / 0.481.
 
-**Done (pi SDK LLM reranking):** `src/llm/pi-reranker.ts` — `mode=rerank` runs a pi
-agent session over the hybrid candidate pool with a terminating structured tool,
-per-verdict relevance + reason, text-answer parsing last resort, attempt retries,
-and graceful hybrid fallback (`meta.reranked=false`). Auth: `~/.pi/agent` login or
-`RERANK_API_KEY` (docker-compose passthrough + .env.example included).
+**Done (pi SDK LLM query expansion):** `src/llm/pi-expander.ts` — `mode=expand` and
+`mode=expand-rerank`. A pi agent session rewrites the query into 3–5 semantic
+variants, multi-query retrieval runs across them, and RRF fuses the per-variant
+lists. Lazy ModelRuntime, attempt retries, graceful single-query fallback
+(`meta.expanded=false`). Same provider/auth as the reranker.
 
-Baseline (all four modes, real model — opencode-go/deepseek-v4-flash reranker):
+Baseline (six modes, real model — opencode-go/deepseek-v4-flash stages):
 
 ```
-mode     recall@k  mrr      ndcg@k
-hybrid      1.000    0.975    0.982
-bm25        0.481    0.481    0.481
-vector      1.000    0.957    0.968
-rerank      1.000    1.000    0.997
+mode           recall@k  mrr      ndcg@k
+hybrid          1.000    0.975    0.982
+bm25            0.481    0.481    0.481
+vector          1.000    0.957    0.968
+rerank          1.000    1.000    0.994
+expand          1.000    0.981    0.983
+expand-rerank   1.000    1.000    0.997
 ```
-
-Reranking is the winning stage: MRR 0.975 → 1.000, NDCG 0.982 → 0.997.
 
 **Next phases:**
 
-- **Phase 3 — retrieval depth**: query expansion, chunk-level hybrid with doc
-  aggregation, vector metadata-filter pushdown, semantic cache — each measured
-  against the eval baseline above.
-- **Phase 2 remainder — curation agents**: `stageSession()` insight/angle generation
-  (same pi SDK infra as the reranker) for the curated-brief side.
-- **Phase 4 — scheduling**: in-container cron or ofelia-free host cron + `ingest_runs`
+- **Retrieval depth**: chunk-level hybrid with doc aggregation, vector
+  metadata-filter pushdown, semantic cache — each measured against the 6-mode
+  baseline above.
+- **Curation agents**: LLM insight/angle generation (same pi SDK stage infra as
+  the reranker/expander) for the curated-brief side.
+- **Scheduling**: in-container cron or ofelia-free host cron + `ingest_runs`
   reporting.
